@@ -1,0 +1,7 @@
+{
+  "name": "VendNexus",
+  "description": "AI-powered multi-agent vending machine management platform featuring real-time inventory, sales analytics, and smart customer purchasing.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
