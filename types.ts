@@ -23,6 +23,7 @@ export interface Product {
   min_quantity: number;
   image: string;
   machineId: string;
+  expiryDate: number; // Timestamp
 }
 
 export interface Machine {

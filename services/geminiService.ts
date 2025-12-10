@@ -42,6 +42,53 @@ export const generateBusinessInsight = async (
   }
 };
 
+export const suggestOptimalPrice = async (
+  product: Product,
+  recentSales: SaleRecord[]
+): Promise<{ suggestedPrice: number; reasoning: string } | null> => {
+  const productSales = recentSales.filter(s => s.productId === product.id);
+  const salesCount = productSales.length;
+  const revenue = productSales.reduce((acc, s) => acc + s.revenue, 0);
+
+  const prompt = `
+    Analyze pricing for: "${product.name}" (${product.category}).
+    - Cost: $${product.cost}
+    - Current Price: $${product.price}
+    - Stock: ${product.quantity} (Min: ${product.min_quantity})
+    - Sales (Last 30d): ${salesCount} units, $${revenue.toFixed(2)} revenue.
+    - Expiry: ${new Date(product.expiryDate).toLocaleDateString()}
+    
+    Goal: Maximize profit margin while maintaining turnover. Consider expiration risk.
+    Return JSON with 'suggestedPrice' (number) and 'reasoning' (string).
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            suggestedPrice: { type: Type.NUMBER },
+            reasoning: { type: Type.STRING }
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (text) {
+      return JSON.parse(text);
+    }
+    return null;
+  } catch (error) {
+    console.error("Price Suggestion Error:", error);
+    return null;
+  }
+};
+
 export const generateSpeechFromText = async (text: string): Promise<ArrayBuffer | null> => {
   try {
     const response = await ai.models.generateContent({
@@ -70,6 +117,29 @@ export const generateSpeechFromText = async (text: string): Promise<ArrayBuffer 
     return null;
   } catch (error) {
     console.error("TTS Error:", error);
+    return null;
+  }
+};
+
+export const generateProductImage = async (productName: string): Promise<string | null> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: `A professional, commercial product photography shot of ${productName}, isolated on a clean white background, studio lighting, high resolution, 4k.` }],
+      },
+    });
+    
+    // Iterate through parts to find the image part
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        const mimeType = part.inlineData.mimeType || 'image/png';
+        return `data:${mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Image Generation Error:", error);
     return null;
   }
 };

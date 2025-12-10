@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Product, CartItem, PaymentMethod } from '../types';
-import { ShoppingCart, CreditCard, Smartphone, Banknote, QrCode } from 'lucide-react';
+import { ShoppingCart, CreditCard, Smartphone, Banknote, QrCode, MapPin } from 'lucide-react';
 
 interface CustomerViewProps {
   products: Product[];
   onPurchase: (cart: CartItem[], method: PaymentMethod) => void;
+  machineName?: string;
+  location?: string;
 }
 
-const CustomerView: React.FC<CustomerViewProps> = ({ products, onPurchase }) => {
+const CustomerView: React.FC<CustomerViewProps> = ({ products, onPurchase, machineName, location }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
   const [showCart, setShowCart] = useState(false);
@@ -141,6 +143,15 @@ const CustomerView: React.FC<CustomerViewProps> = ({ products, onPurchase }) => 
 
   return (
     <div className="space-y-6">
+      {/* Header Info */}
+      <div className="bg-gradient-to-r from-teal-800 to-teal-600 text-white p-6 rounded-2xl shadow-sm">
+         <h1 className="text-2xl font-bold mb-1">{machineName || 'Vending Machine'}</h1>
+         <div className="flex items-center text-teal-100 text-sm">
+           <MapPin size={16} className="mr-1" />
+           <span>{location || 'Unknown Location'}</span>
+         </div>
+      </div>
+
       {/* Category Filter */}
       <div className="flex overflow-x-auto space-x-2 pb-2 no-scrollbar">
         {categories.map(cat => (

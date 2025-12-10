@@ -69,7 +69,17 @@ const App: React.FC = () => {
       // Customer Mode Logic: Filter products for the "Machine" the customer is currently standing at.
       // For demo, we just show all or let them filter, but typically a customer is at ONE machine.
       // Let's assume customer is viewing 'm1' (Nexus Prime) for this demo interaction.
-      return <CustomerView products={products.filter(p => p.machineId === 'm1')} onPurchase={handleCustomerPurchase} />;
+      const customerMachineId = 'm1';
+      const currentMachine = MACHINES.find(m => m.id === customerMachineId);
+      
+      return (
+        <CustomerView 
+          products={products.filter(p => p.machineId === customerMachineId)} 
+          onPurchase={handleCustomerPurchase}
+          machineName={currentMachine?.name}
+          location={currentMachine?.location}
+        />
+      );
     }
 
     switch (activeTab) {
@@ -88,6 +98,7 @@ const App: React.FC = () => {
           <Inventory 
             products={selectedMachineId === 'all' ? products : products.filter(p => p.machineId === selectedMachineId)}
             machines={MACHINES}
+            sales={sales}
             onUpdateProduct={handleUpdateProduct}
             onDeleteProduct={handleDeleteProduct}
             onAddProduct={handleAddProduct}
