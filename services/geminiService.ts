@@ -1,8 +1,15 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { Product, SaleRecord, Machine } from '../types';
 
-// NOTE: Using a hard requirement that API_KEY is available in process.env
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get a fresh client instance every time to avoid API key race conditions
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.error("API_KEY is missing from process.env");
+    throw new Error("API Key not found");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export const generateBusinessInsight = async (
   query: string,
@@ -28,6 +35,7 @@ export const generateBusinessInsight = async (
   `;
 
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview', // Using Pro for reasoning capability
       contents: prompt,
@@ -63,6 +71,7 @@ export const suggestOptimalPrice = async (
   `;
 
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
@@ -91,6 +100,7 @@ export const suggestOptimalPrice = async (
 
 export const generateSpeechFromText = async (text: string): Promise<ArrayBuffer | null> => {
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: text }] }],
@@ -123,6 +133,7 @@ export const generateSpeechFromText = async (text: string): Promise<ArrayBuffer 
 
 export const generateProductImage = async (productName: string): Promise<string | null> => {
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -151,12 +162,6 @@ export const chatWithAgent = async (
   contextData: any
 ): Promise<{ text: string, audio?: ArrayBuffer }> => {
   
-  // Construct the conversation history for the model
-  // Note: For simplicity in this functional implementation, we are using a single turn generation 
-  // with history injected as context, but a real `chat` object could be used. 
-  // Given we need to inject FRESH dynamic context (sales/inventory) on every turn, 
-  // stateless generation with full context is often safer for this specific dashboard use case.
-  
   const systemInstruction = `
     You are VendNexus AI, an intelligent vending machine operations assistant.
     You have access to real-time inventory, sales, and machine status.
@@ -165,34 +170,40 @@ export const chatWithAgent = async (
     ${JSON.stringify(contextData)}
 
     Your goal is to help the owner optimize profits, manage stock, and fix issues.
-    If the user asks about expanding the business or market trends, use Google Search.
+    If the user asks about expanding the business or market trends, you can provide general advice.
   `;
 
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: [
-        { role: 'user', parts: [{ text: `System Instruction: ${systemInstruction}` }] },
         ...history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
         { role: 'user', parts: [{ text: currentMessage }] }
       ],
       config: {
-        tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 4096 } // Higher budget for complex chat queries
+        systemInstruction: systemInstruction,
+        // Using Thinking Config as requested. 
+        // Note: 'tools' are disabled to avoid conflicts with 'thinkingConfig' in this preview model.
+        thinkingConfig: { thinkingBudget: 32768 } 
       }
     });
 
     const responseText = response.text || "I'm not sure how to respond to that.";
 
-    // Generate audio for the response automatically (as requested by 'Generate speech' feature)
-    // We truncate long responses for audio generation to save latency
-    const audioBuffer = await generateSpeechFromText(responseText.substring(0, 300));
+    // Generate audio for the response automatically
+    // Truncate for audio generation speed
+    let audioBuffer: ArrayBuffer | null = null;
+    try {
+      audioBuffer = await generateSpeechFromText(responseText.substring(0, 300));
+    } catch (e) {
+      console.warn("Audio generation skipped due to error", e);
+    }
     
-    // Check for grounding
+    // Check for grounding (if available in response metadata)
     const grounding = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     let finalResponse = responseText;
     if (grounding) {
-       // Append sources if available (simple text append for this demo)
        const sources = grounding.map((g: any) => g.web?.uri).filter(Boolean).join('\n');
        if (sources) finalResponse += `\n\nSources:\n${sources}`;
     }
@@ -204,6 +215,6 @@ export const chatWithAgent = async (
 
   } catch (error) {
     console.error("Chat Error:", error);
-    return { text: "I'm having trouble connecting to the VendNexus network." };
+    return { text: "I'm having trouble connecting to the VendNexus network. Please try again." };
   }
 };

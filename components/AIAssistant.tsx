@@ -295,7 +295,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ contextData }) => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder={isListening ? "Listening..." : "Ask about revenue, stock..."}
-              className="flex-1 px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white text-gray-900 placeholder-gray-500"
             />
             <button 
               onClick={handleSend}
